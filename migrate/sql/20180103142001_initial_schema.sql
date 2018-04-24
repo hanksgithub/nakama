@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS storage (
     UNIQUE (collection, key, user_id)
 );
 CREATE INDEX IF NOT EXISTS collection_read_user_id_key_idx ON storage (collection, read, user_id, key);
+CREATE INDEX IF NOT EXISTS value_ginidx ON storage USING GIN (value);
 
 CREATE TABLE IF NOT EXISTS message (
   PRIMARY KEY (stream_mode, stream_subject, stream_descriptor, stream_label, create_time, id),
@@ -172,7 +173,42 @@ CREATE TABLE IF NOT EXISTS user_tombstone (
   create_time    TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS groups (
+  PRIMARY KEY (lang_tag, count, id, disable_time),
+
+  id           UUID          UNIQUE NOT NULL,
+  creator_id   UUID          NOT NULL,
+  name         VARCHAR(255)  CONSTRAINT groups_name_key UNIQUE NOT NULL,
+  description  VARCHAR(255),
+  avatar_url   VARCHAR(255),
+  -- https://tools.ietf.org/html/bcp47
+  lang_tag     VARCHAR(18)   DEFAULT 'en',
+  metadata     JSONB         DEFAULT '{}' NOT NULL,
+  state        SMALLINT      DEFAULT 0 CHECK (state >= 0) NOT NULL, -- public(0), private(1)
+  edge_count   INT           DEFAULT 0 CHECK (edge_count >= 0) NOT NULL,
+  maxcount     INT           DEFAULT 100 CHECK (maxcount >= 0) NOT NULL,
+  create_time  TIMESTAMPTZ   DEFAULT now() NOT NULL,
+  update_time  TIMESTAMPTZ   DEFAULT now() NOT NULL,
+  disable_time TIMESTAMPTZ   DEFAULT CAST(0 AS TIMESTAMPTZ) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS count_update_time_id_idx ON groups (count, update_time, id, disable_time);
+CREATE INDEX IF NOT EXISTS create_time_count_id_idx ON groups (create_time, count, id, disable_time);
+
+CREATE TABLE IF NOT EXISTS group_edge (
+  PRIMARY KEY (source_id, state, position),
+
+  source_id      UUID         NOT NULL,
+  position       BIGINT       NOT NULL, -- Used for sort order on rows.
+  update_time    TIMESTAMPTZ  DEFAULT now() NOT NULL,
+  destination_id UUID         NOT NULL,
+  state          SMALLINT     DEFAULT 0 NOT NULL, -- superadmin(0), admin(1), member(2), join(3), archived(4)
+
+  UNIQUE (source_id, destination_id)
+);
+
 -- +migrate Down
+DROP TABLE IF EXISTS group_edge;
+DROP TABLE IF EXISTS groups;
 DROP TABLE IF EXISTS user_tombstone;
 DROP TABLE IF EXISTS wallet_ledger;
 DROP TABLE IF EXISTS leaderboard_record;
