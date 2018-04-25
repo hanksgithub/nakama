@@ -52,14 +52,22 @@ message Envelope {
     MatchLeave match_leave = 8;
     // Presence update for a particular realtime match.
     MatchPresenceEvent match_presence_event = 9;
+    // Submit a new matchmaking process request.
+    MatchmakerAdd matchmaker_add = 10;
+    // A successful matchmaking result.
+    MatchmakerMatched matchmaker_matched = 11;
+    // Cancel a matchmaking process using a ticket.
+    MatchmakerRemove matchmaker_remove = 12;
+    // A response from starting a new matchmaking process.
+    MatchmakerTicket matchmaker_ticket = 13;
     // Notifications send by the server.
-    Notifications notifications = 10;
+    Notifications notifications = 14;
     // RPC call or response.
-    api.Rpc rpc = 11;
+    api.Rpc rpc = 15;
     // A data message delivered over a stream.
-    StreamData stream_data = 12;
+    StreamData stream_data = 16;
     // Presence update for a particular stream.
-    StreamPresenceEvent stream_presence_event = 13;
+    StreamPresenceEvent stream_presence_event = 17;
   }
 }
 
@@ -160,6 +168,58 @@ message MatchPresenceEvent {
   repeated StreamPresence joins = 2;
   // User presences that have just left the match.
   repeated StreamPresence leaves = 3;
+}
+
+// Start a new matchmaking process.
+message MatchmakerAdd {
+  // Minimum total user count to match together.
+  int32 min_count = 1;
+  // Maximum total user count to match together.
+  int32 max_count = 2;
+  // Filter query used to identify suitable users.
+  string filter = 3;
+  // String properties.
+  map<string, string> string_properties = 4;
+  // Numeric properties.
+  map<string, double> numeric_properties = 5;
+}
+
+// A successful matchmaking result.
+message MatchmakerMatched {
+  message MatchmakerUser {
+    // User info.
+    StreamPresence presence = 1;
+    // String properties.
+    map<string, string> string_properties = 5;
+    // Numeric properties.
+    map<string, double> numeric_properties = 6;
+  }
+
+  // The matchmaking ticket that has completed.
+  string ticket = 1;
+  // The match token or match ID to join.
+  oneof id {
+    // Match ID.
+    string match_id = 2;
+    // Match join token.
+    string token = 3;
+  }
+  // The users that have been matched together, and information about their matchmaking data.
+  repeated MatchmakerUser users = 4;
+  // A reference to the current user and their properties.
+  MatchmakerUser self = 5;
+}
+
+// Cancel an existing ongoing matchmaking process.
+message MatchmakerRemove {
+  // The ticket to cancel.
+  string ticket = 1;
+}
+
+// A ticket representing a new matchmaking process.
+message MatchmakerTicket {
+  // The ticket that can be used to cancel matchmaking.
+  string ticket = 1;
 }
 
 // A collection of zero or more notifications.
